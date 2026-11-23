@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const TYPES_AUTORISES = ["image/jpeg", "image/png", "image/webp"];
 const TAILLE_MAX_BASE64 = 3_000_000; // ~2,2 Mo d'image
@@ -10,6 +10,9 @@ const TAILLE_MAX_BASE64 = 3_000_000; // ~2,2 Mo d'image
 const MODELES = [process.env.GEMINI_MODEL, "gemini-flash-latest", "gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash"].filter(
   (m): m is string => Boolean(m),
 );
+
+// La recherche Google gratuite est disponible sur ces modèles.
+const MODELES_RECHERCHE = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-3.5-flash"];
 
 const CONSIGNE = `Tu es un expert de la revente d'objets d'occasion en France.
 Regarde la photo et rédige une annonce pour trois sites : Vinted, Leboncoin et eBay.
@@ -27,7 +30,7 @@ Règles :
 Si la photo ne montre pas un objet à vendre, réponds uniquement {"erreur": "explication courte"}.
 
 Sinon, réponds uniquement avec ce JSON :
-{"objet": "nom court de l'objet",
+{"objet": "nom précis de l'objet : marque, modèle, édition, plateforme, format (ex. code de téléchargement), taille",
  "prix_conseille": nombre, "prix_min": nombre, "prix_max": nombre,
  "vinted": {"titre": "", "description": "", "categorie": ""},
  "leboncoin": {"titre": "", "description": "", "categorie": ""},
@@ -66,13 +69,79 @@ export async function POST(req: Request) {
     return NextResponse.json({ erreur: "Cette photo est trop lourde. Essaie avec une autre." }, { status: 400 });
   }
 
-  const requete = {
+  const texte = await appelerGemini(cle, MODELES, {
     contents: [{ parts: [{ inline_data: { mime_type: type, data: image } }, { text: CONSIGNE }] }],
     generationConfig: { responseMimeType: "application/json", temperature: 0.4 },
-  };
+  });
 
-  let texte: string | null = null;
-  for (const modele of MODELES) {
+  if (!texte) {
+    return NextResponse.json(
+      { erreur: "L'IA est très demandée en ce moment. Réessaie dans une minute." },
+      { status: 502 },
+    );
+  }
+
+  const res = lireJson(texte);
+  if (!res) {
+    return NextResponse.json({ erreur: "La rédaction a échoué. Réessaie avec la même photo." }, { status: 502 });
+  }
+
+  if (typeof res.erreur === "string") {
+    return NextResponse.json({ erreur: `On n'a pas reconnu d'objet à vendre : ${res.erreur}` }, { status: 422 });
+  }
+
+  const vinted = res.vinted;
+  const leboncoin = res.leboncoin;
+  const ebay = res.ebay;
+  const objet = typeof res.objet === "string" ? res.objet.slice(0, 200) : "";
+  let prix = nombre(res.prix_conseille);
+  let prixMin = nombre(res.prix_min);
+  let prixMax = nombre(res.prix_max);
+  if (!estVersion(vinted) || !estVersion(leboncoin) || !estVersion(ebay) || prix === null) {
+    return NextResponse.json({ erreur: "La rédaction a échoué. Réessaie avec la même photo." }, { status: 502 });
+  }
+
+  // Prix vérifié sur le web (recherche Google) ; à défaut, on garde l'estimation de l'IA.
+  let source: "web" | "estimation" = "estimation";
+  if (objet) {
+    const web = await prixDepuisLeWeb(cle, objet);
+    if (web) {
+      prix = web.prix;
+      prixMin = web.min;
+      prixMax = web.max;
+      source = "web";
+    }
+  }
+
+  // Avant-goût : Vinted en entier, Leboncoin et eBay seulement en aperçu (le reste est débloqué après paiement).
+  return NextResponse.json({
+    objet,
+    prix_conseille: prix,
+    prix_min: prixMin ?? prix,
+    prix_max: prixMax ?? prix,
+    prix_source: source,
+    vinted,
+    apercus: {
+      leboncoin: { titre: leboncoin.titre, categorie: leboncoin.categorie },
+      ebay: { titre: ebay.titre, categorie: ebay.categorie },
+    },
+  });
+}
+
+function lireJson(texte: string): Record<string, unknown> | null {
+  const debut = texte.indexOf("{");
+  const fin = texte.lastIndexOf("}");
+  if (debut === -1 || fin <= debut) return null;
+  try {
+    const v = JSON.parse(texte.slice(debut, fin + 1));
+    return v && typeof v === "object" ? (v as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function appelerGemini(cle: string, modeles: string[], requete: unknown): Promise<string | null> {
+  for (const modele of modeles) {
     try {
       const rep = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modele)}:generateContent`,
@@ -89,49 +158,31 @@ export async function POST(req: Request) {
       const data = (await rep.json()) as {
         candidates?: { content?: { parts?: { text?: string }[] } }[];
       };
-      texte = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? null;
-      if (texte) break;
+      const texte = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("");
+      if (texte) return texte;
     } catch (e) {
       console.error("Gemini", modele, e);
     }
   }
+  return null;
+}
 
-  if (!texte) {
-    return NextResponse.json(
-      { erreur: "L'IA est très demandée en ce moment. Réessaie dans une minute." },
-      { status: 502 },
-    );
-  }
-
-  let res: Record<string, unknown>;
-  try {
-    res = JSON.parse(texte.replace(/^```(?:json)?\s*|\s*```$/g, ""));
-  } catch {
-    return NextResponse.json({ erreur: "La rédaction a échoué. Réessaie avec la même photo." }, { status: 502 });
-  }
-
-  if (typeof res.erreur === "string") {
-    return NextResponse.json({ erreur: `On n'a pas reconnu d'objet à vendre : ${res.erreur}` }, { status: 422 });
-  }
-
-  const prix = nombre(res.prix_conseille);
-  const vinted = res.vinted;
-  const leboncoin = res.leboncoin;
-  const ebay = res.ebay;
-  if (!estVersion(vinted) || !estVersion(leboncoin) || !estVersion(ebay) || prix === null) {
-    return NextResponse.json({ erreur: "La rédaction a échoué. Réessaie avec la même photo." }, { status: 502 });
-  }
-
-  // Avant-goût : Vinted en entier, Leboncoin et eBay seulement en aperçu (le reste est débloqué après paiement).
-  return NextResponse.json({
-    objet: typeof res.objet === "string" ? res.objet : "",
-    prix_conseille: prix,
-    prix_min: nombre(res.prix_min) ?? prix,
-    prix_max: nombre(res.prix_max) ?? prix,
-    vinted,
-    apercus: {
-      leboncoin: { titre: leboncoin.titre, categorie: leboncoin.categorie },
-      ebay: { titre: ebay.titre, categorie: ebay.categorie },
-    },
+async function prixDepuisLeWeb(cle: string, objet: string) {
+  const consigne = `Objet à vendre d'occasion en France : "${objet}".
+Cherche sur le web les prix actuels de cet objet exact (même édition, même plateforme, même format) :
+annonces d'occasion sur Vinted, Leboncoin, eBay, Rakuten, Back Market, et le prix neuf actuel.
+Donne un prix de revente réaliste pour vendre en moins de deux semaines, inférieur au prix neuf.
+Réponds uniquement avec ce JSON : {"prix_conseille": nombre, "prix_min": nombre, "prix_max": nombre}`;
+  const texte = await appelerGemini(cle, MODELES_RECHERCHE, {
+    contents: [{ parts: [{ text: consigne }] }],
+    tools: [{ google_search: {} }],
+    generationConfig: { temperature: 0.2 },
   });
+  if (!texte) return null;
+  const r = lireJson(texte);
+  const prix = r ? nombre(r.prix_conseille) : null;
+  if (!r || !prix) return null;
+  const min = nombre(r.prix_min) ?? prix;
+  const max = nombre(r.prix_max) ?? prix;
+  return { prix, min: Math.min(min, prix), max: Math.max(max, prix) };
 }

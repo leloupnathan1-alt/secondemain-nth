@@ -10,11 +10,17 @@ type Annonce = {
   prix_conseille: number;
   prix_min: number;
   prix_max: number;
+  prix_source: "web" | "estimation";
   vinted: Version;
   apercus: { leboncoin: Apercu; ebay: Apercu };
 };
 
-const MESSAGES_ATTENTE = ["On regarde ta photo…", "On rédige ton annonce…", "On estime le bon prix…"];
+const MESSAGES_ATTENTE = [
+  "On regarde ta photo…",
+  "On rédige ton annonce…",
+  "On compare les prix en ligne…",
+  "On calcule le bon prix…",
+];
 
 async function reduirePhoto(fichier: File): Promise<{ data: string; apercu: string }> {
   const url = URL.createObjectURL(fichier);
@@ -166,6 +172,9 @@ export default function Essai() {
               <p className="font-titre text-4xl font-extrabold tracking-tight">{annonce.prix_conseille} €</p>
               <p className="text-sm text-encre/60">
                 Fourchette : {annonce.prix_min} à {annonce.prix_max} €
+              </p>
+              <p className="mt-1 text-xs text-encre/50">
+                {annonce.prix_source === "web" ? "D'après les prix trouvés en ligne" : "Estimation, à vérifier"}
               </p>
             </div>
           </div>
