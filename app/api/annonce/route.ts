@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { inserer, lire, supabaseConfigure, type Paiement } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -117,12 +118,38 @@ export async function POST(req: Request) {
     }
   }
 
-  // Avant-goût : Vinted en entier, Leboncoin et eBay seulement en aperçu (le reste est débloqué après paiement).
-  return NextResponse.json({
+  const contenu = {
     objet,
     prix_conseille: prix,
     prix_min: prixMin ?? prix,
     prix_max: prixMax ?? prix,
+    prix_source: source,
+    vinted,
+    leboncoin,
+    ebay,
+  };
+
+  const acces = await accesAbonne(req);
+  let id: string | null = null;
+  if (supabaseConfigure()) {
+    try {
+      const ligne = await inserer<{ id: string }>("annonces", { contenu, acces });
+      id = ligne.id;
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  // Abonné : tout est débloqué.
+  if (acces) return NextResponse.json({ ...contenu, id, complet: true });
+
+  // Avant-goût : Vinted en entier, Leboncoin et eBay seulement en aperçu (le reste est débloqué après paiement).
+  return NextResponse.json({
+    id,
+    objet,
+    prix_conseille: contenu.prix_conseille,
+    prix_min: contenu.prix_min,
+    prix_max: contenu.prix_max,
     prix_source: source,
     vinted,
     apercus: {
@@ -130,6 +157,30 @@ export async function POST(req: Request) {
       ebay: { titre: ebay.titre, categorie: ebay.categorie },
     },
   });
+}
+
+// Renvoie l'identifiant d'accès si ce navigateur a un abonnement actif (et du quota restant).
+async function accesAbonne(req: Request): Promise<string | null> {
+  const m = /(?:^|;\s*)sm_acces=([^;]+)/.exec(req.headers.get("cookie") ?? "");
+  if (!m || !supabaseConfigure()) return null;
+  const id = decodeURIComponent(m[1]);
+  if (!/^cs_[A-Za-z0-9_]+$/.test(id)) return null;
+  try {
+    const [p] = await lire<Paiement>("paiements", `session_id=eq.${id}&actif=eq.true&select=formule`);
+    if (!p || p.formule === "unite") return null;
+    if (p.formule === "mensuel") {
+      const depuis = new Date(Date.now() - 30 * 86_400_000).toISOString();
+      const recentes = await lire<{ id: string }>(
+        "annonces",
+        `acces=eq.${id}&created_at=gte.${encodeURIComponent(depuis)}&select=id&limit=30`,
+      );
+      if (recentes.length >= 30) return null;
+    }
+    return id;
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
 }
 
 function lireJson(texte: string): Record<string, unknown> | null {

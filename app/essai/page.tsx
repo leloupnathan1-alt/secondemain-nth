@@ -2,17 +2,21 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import CarteVersion, { type Version } from "@/app/components/CarteVersion";
 
-type Version = { titre: string; description: string; categorie: string };
 type Apercu = { titre: string; categorie: string };
 type Annonce = {
+  id: string | null;
+  complet?: boolean;
+  leboncoin?: Version;
+  ebay?: Version;
   objet: string;
   prix_conseille: number;
   prix_min: number;
   prix_max: number;
   prix_source: "web" | "estimation";
   vinted: Version;
-  apercus: { leboncoin: Apercu; ebay: Apercu };
+  apercus?: { leboncoin: Apercu; ebay: Apercu };
 };
 
 const MESSAGES_ATTENTE = [
@@ -53,14 +57,12 @@ export default function Essai() {
   const [message, setMessage] = useState(0);
   const [erreur, setErreur] = useState("");
   const [annonce, setAnnonce] = useState<Annonce | null>(null);
-  const [copie, setCopie] = useState(false);
   const [precisions, setPrecisions] = useState("");
 
   async function envoyer(fichier: File | undefined) {
     if (!fichier) return;
     setEtat("attente");
     setErreur("");
-    setCopie(false);
     setMessage(0);
     const minuteur = setInterval(() => setMessage((m) => (m + 1) % MESSAGES_ATTENTE.length), 2200);
     try {
@@ -73,7 +75,16 @@ export default function Essai() {
       });
       const json = await rep.json().catch(() => ({}));
       if (!rep.ok) throw new Error(json.erreur ?? "Une erreur est survenue. Réessaie dans un instant.");
-      setAnnonce(json as Annonce);
+      const a = json as Annonce;
+      setAnnonce(a);
+      try {
+        sessionStorage.setItem(
+          "sm_annonce",
+          JSON.stringify({ id: a.id, objet: a.objet, prix: a.prix_conseille }),
+        );
+      } catch {
+        /* sans conséquence */
+      }
       setEtat("fini");
       window.scrollTo({ top: 0 });
     } catch (e) {
@@ -81,17 +92,6 @@ export default function Essai() {
       setEtat("erreur");
     } finally {
       clearInterval(minuteur);
-    }
-  }
-
-  async function copier() {
-    if (!annonce) return;
-    const v = annonce.vinted;
-    try {
-      await navigator.clipboard.writeText(`${v.titre}\n\n${v.description}\n\nPrix : ${annonce.prix_conseille} €`);
-      setCopie(true);
-    } catch {
-      setCopie(false);
     }
   }
 
@@ -193,47 +193,40 @@ export default function Essai() {
             </div>
           </div>
 
-          <section className="mt-8 rounded-2xl border border-encre/10 p-5">
-            <div className="flex items-center justify-between">
-              <h2 className="font-titre text-lg font-extrabold">Vinted</h2>
-              <span className="rounded-full bg-accent/15 px-3 py-1 text-xs font-bold text-accent-fonce">Offert</span>
-            </div>
-            <p className="mt-1 text-sm text-encre/60">{annonce.vinted.categorie}</p>
-            <p className="mt-4 font-bold">{annonce.vinted.titre}</p>
-            <p className="mt-2 whitespace-pre-line leading-relaxed">{annonce.vinted.description}</p>
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <button onClick={copier} className="rounded-xl border-2 border-encre py-3 font-bold active:scale-[0.99]">
-                {copie ? "Copié ✓" : "Copier"}
-              </button>
-              <a
-                href="https://www.vinted.fr/items/new"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-xl bg-encre py-3 text-center font-bold text-white"
+          <div className="mt-4">
+            <CarteVersion site="vinted" version={annonce.vinted} prix={annonce.prix_conseille} badge="Offert" />
+          </div>
+
+          {annonce.complet && annonce.leboncoin && annonce.ebay ? (
+            <>
+              <CarteVersion site="leboncoin" version={annonce.leboncoin} prix={annonce.prix_conseille} />
+              <CarteVersion site="ebay" version={annonce.ebay} prix={annonce.prix_conseille} />
+            </>
+          ) : (
+            <>
+              {annonce.apercus &&
+                (["leboncoin", "ebay"] as const).map((site) => (
+                  <section key={site} className="relative mt-4 overflow-hidden rounded-2xl border border-encre/10 p-5">
+                    <h2 className="font-titre text-lg font-extrabold">{site === "ebay" ? "eBay" : "Leboncoin"}</h2>
+                    <p className="mt-1 text-sm text-encre/60">{annonce.apercus?.[site].categorie}</p>
+                    <p className="mt-4 font-bold">{annonce.apercus?.[site].titre}</p>
+                    <div aria-hidden className="mt-2 select-none space-y-2 blur-[5px]">
+                      <p>Description complète adaptée au site, avec les bons mots-clés pour être trouvé.</p>
+                      <p>Remise en main propre possible.</p>
+                    </div>
+                    <div className="absolute inset-x-0 bottom-0 flex items-end justify-center bg-gradient-to-t from-white via-white/90 to-transparent px-5 pb-4 pt-16">
+                      <span className="text-sm font-bold">🔒 Version complète réservée aux membres</span>
+                    </div>
+                  </section>
+                ))}
+              <Link
+                href={annonce.id ? `/offre?annonce=${annonce.id}` : "/offre"}
+                className={`mt-8 ${BOUTON_PRINCIPAL}`}
               >
-                Ouvrir Vinted
-              </a>
-            </div>
-          </section>
-
-          {(["leboncoin", "ebay"] as const).map((site) => (
-            <section key={site} className="relative mt-4 overflow-hidden rounded-2xl border border-encre/10 p-5">
-              <h2 className="font-titre text-lg font-extrabold">{site === "ebay" ? "eBay" : "Leboncoin"}</h2>
-              <p className="mt-1 text-sm text-encre/60">{annonce.apercus[site].categorie}</p>
-              <p className="mt-4 font-bold">{annonce.apercus[site].titre}</p>
-              <div aria-hidden className="mt-2 select-none space-y-2 blur-[5px]">
-                <p>Description complète adaptée au site, avec les bons mots-clés pour être trouvé.</p>
-                <p>Remise en main propre possible.</p>
-              </div>
-              <div className="absolute inset-x-0 bottom-0 flex items-end justify-center bg-gradient-to-t from-white via-white/90 to-transparent px-5 pb-4 pt-16">
-                <span className="text-sm font-bold">🔒 Version complète réservée aux membres</span>
-              </div>
-            </section>
-          ))}
-
-          <Link href="/offre" className={`mt-8 ${BOUTON_PRINCIPAL}`}>
-            Débloquer Leboncoin et eBay
-          </Link>
+                Débloquer Leboncoin et eBay
+              </Link>
+            </>
+          )}
           <div className="mt-4">{choixPhoto}</div>
         </>
       )}
