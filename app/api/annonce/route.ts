@@ -20,6 +20,9 @@ Regarde la photo et rédige une annonce pour trois sites : Vinted, Leboncoin et 
 Règles :
 - Français impeccable, ton simple et honnête, pas de majuscules partout, pas d'emojis.
 - N'invente rien qui ne se voit pas (marque, taille, matière) : si c'est incertain, écris "à préciser".
+- Ne qualifie jamais l'objet de faux, factice, contrefaçon, réplique ou boîtier vide : c'est l'objet réel du vendeur.
+- Une mention comme "code de téléchargement, aucun disque inclus" désigne la version officielle avec un code dans la boîte : écris-le simplement.
+- Si le vendeur donne des précisions, elles priment sur ce que tu crois voir et doivent apparaître dans l'annonce.
 - Mentionne l'état apparent, en restant prudent.
 - Vinted : titre court (60 caractères max), description de 3 à 5 lignes.
 - Leboncoin : titre de 50 caractères max, description un peu plus détaillée, termine par "Remise en main propre possible".
@@ -61,7 +64,8 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ erreur: "Requête invalide." }, { status: 400 });
   }
-  const { image, type } = (corps ?? {}) as { image?: unknown; type?: unknown };
+  const { image, type, precisions: brut } = (corps ?? {}) as { image?: unknown; type?: unknown; precisions?: unknown };
+  const precisions = typeof brut === "string" ? brut.replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 300) : "";
   if (typeof image !== "string" || typeof type !== "string" || !TYPES_AUTORISES.includes(type)) {
     return NextResponse.json({ erreur: "Envoie une photo au format JPG, PNG ou WebP." }, { status: 400 });
   }
@@ -70,7 +74,7 @@ export async function POST(req: Request) {
   }
 
   const texte = await appelerGemini(cle, MODELES, {
-    contents: [{ parts: [{ inline_data: { mime_type: type, data: image } }, { text: CONSIGNE }] }],
+    contents: [{ parts: [{ inline_data: { mime_type: type, data: image } }, { text: precisions ? `${CONSIGNE}\n\nPrécisions du vendeur : "${precisions}"` : CONSIGNE }] }],
     generationConfig: { responseMimeType: "application/json", temperature: 0.4 },
   });
 
@@ -104,7 +108,7 @@ export async function POST(req: Request) {
   // Prix vérifié sur le web (recherche Google) ; à défaut, on garde l'estimation de l'IA.
   let source: "web" | "estimation" = "estimation";
   if (objet) {
-    const web = await prixDepuisLeWeb(cle, objet);
+    const web = await prixDepuisLeWeb(cle, precisions ? `${objet} (${precisions})` : objet);
     if (web) {
       prix = web.prix;
       prixMin = web.min;
@@ -171,7 +175,8 @@ async function prixDepuisLeWeb(cle: string, objet: string) {
   const consigne = `Objet à vendre d'occasion en France : "${objet}".
 Cherche sur le web les prix actuels de cet objet exact (même édition, même plateforme, même format) :
 annonces d'occasion sur Vinted, Leboncoin, eBay, Rakuten, Back Market, et le prix neuf actuel.
-Donne un prix de revente réaliste pour vendre en moins de deux semaines, inférieur au prix neuf.
+Base-toi sur les prix réellement trouvés, pas sur tes connaissances : les prix récents ont pu changer.
+Donne un prix de revente réaliste pour vendre en moins de deux semaines, un peu inférieur au prix neuf actuel.
 Réponds uniquement avec ce JSON : {"prix_conseille": nombre, "prix_min": nombre, "prix_max": nombre}`;
   const texte = await appelerGemini(cle, MODELES_RECHERCHE, {
     contents: [{ parts: [{ text: consigne }] }],

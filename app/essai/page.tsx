@@ -54,6 +54,7 @@ export default function Essai() {
   const [erreur, setErreur] = useState("");
   const [annonce, setAnnonce] = useState<Annonce | null>(null);
   const [copie, setCopie] = useState(false);
+  const [precisions, setPrecisions] = useState("");
 
   async function envoyer(fichier: File | undefined) {
     if (!fichier) return;
@@ -68,7 +69,7 @@ export default function Essai() {
       const rep = await fetch("/api/annonce", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: data, type: "image/jpeg" }),
+        body: JSON.stringify({ image: data, type: "image/jpeg", precisions }),
       });
       const json = await rep.json().catch(() => ({}));
       if (!rep.ok) throw new Error(json.erreur ?? "Une erreur est survenue. Réessaie dans un instant.");
@@ -139,7 +140,20 @@ export default function Essai() {
             </p>
           )}
 
-          <div className="mt-8">{choixPhoto}</div>
+          <label className="mt-8 block">
+            <span className="font-bold">Une précision ?</span>{" "}
+            <span className="text-encre/60">(facultatif)</span>
+            <input
+              type="text"
+              value={precisions}
+              maxLength={300}
+              onChange={(e) => setPrecisions(e.target.value)}
+              placeholder="Ex. : neuf sous blister, code jamais utilisé, taille M"
+              className="mt-2 block w-full rounded-xl border border-encre/20 px-4 py-3 text-base outline-none focus:border-accent"
+            />
+          </label>
+
+          <div className="mt-6">{choixPhoto}</div>
           <p className="mt-3 text-center text-sm text-encre/60">Gratuit, sans inscription</p>
         </>
       )}
