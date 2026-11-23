@@ -87,11 +87,11 @@ export default function Commencer() {
     <main className="mx-auto flex min-h-dvh max-w-md flex-col px-6 pb-10 pt-6 md:max-w-xl">
       <div className="flex items-center justify-between text-sm">
         {etape > 0 ? (
-          <button onClick={() => setEtape(etape - 1)} className="py-2 pr-4 font-semibold text-sapin">
+          <button onClick={() => setEtape(etape - 1)} className="py-2 pr-4 font-semibold text-encre">
             ← Retour
           </button>
         ) : (
-          <Link href="/" className="py-2 pr-4 font-semibold text-sapin">
+          <Link href="/" className="py-2 pr-4 font-semibold text-encre">
             ← Accueil
           </Link>
         )}
@@ -99,11 +99,11 @@ export default function Commencer() {
           Question {etape + 1} sur {QUESTIONS.length}
         </span>
       </div>
-      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-sapin/15" aria-hidden>
-        <div className="h-full rounded-full bg-brique transition-all duration-300" style={{ width: `${progression}%` }} />
+      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-encre/10" aria-hidden>
+        <div className="h-full rounded-full bg-accent transition-all duration-300" style={{ width: `${progression}%` }} />
       </div>
 
-      <h1 className="mt-10 font-titre text-3xl font-semibold leading-tight text-sapin">{q.titre}</h1>
+      <h1 className="mt-10 font-titre text-3xl font-extrabold tracking-tight leading-tight text-encre">{q.titre}</h1>
       <p className="mt-3 leading-relaxed text-encre/70">{q.aide}</p>
 
       <div className="mt-auto space-y-3 pt-10">
@@ -113,8 +113,8 @@ export default function Commencer() {
             onClick={() => choisir(q, o)}
             className={`block w-full rounded-xl border-2 px-5 py-4 text-left text-lg font-semibold transition active:scale-[0.99] ${
               labels[q.id] === o.label
-                ? "border-brique bg-brique/10 text-encre"
-                : "border-sapin/25 bg-white/70 text-encre"
+                ? "border-accent bg-accent/10 text-encre"
+                : "border-encre/15 bg-white text-encre"
             }`}
           >
             {o.label}
@@ -151,8 +151,8 @@ function Resultat({
 
   return (
     <main className="mx-auto max-w-md px-6 pb-36 pt-8 md:max-w-xl">
-      <p className="text-sm font-bold uppercase tracking-wider text-brique">Ton résultat</p>
-      <h1 className="mt-3 font-titre text-3xl font-semibold leading-tight text-sapin">
+      <p className="text-sm font-bold uppercase tracking-wider text-accent-fonce">Ton résultat</p>
+      <h1 className="mt-3 font-titre text-3xl font-extrabold tracking-tight leading-tight text-encre">
         Tu as environ {euros(valeur)} qui dorment dans tes placards.
       </h1>
       <p className="mt-4 leading-relaxed">
@@ -161,15 +161,15 @@ function Resultat({
       </p>
 
       <div className="mt-8 grid grid-cols-2 gap-3">
-        <div className="rounded-md border-2 border-dashed border-encre/25 p-4">
+        <div className="rounded-2xl border border-encre/10 p-4">
           <p className="text-sm text-encre/60">Aujourd&apos;hui</p>
-          <p className="mt-1 font-titre text-3xl font-semibold text-encre">{heures(tempsAujourdhui)}</p>
+          <p className="mt-1 font-titre text-3xl font-extrabold tracking-tight text-encre">{heures(tempsAujourdhui)}</p>
           <p className="mt-1 text-sm leading-snug text-encre/70">pour tout publier sur 3 sites</p>
         </div>
-        <div className="-rotate-1 rounded-md border-2 border-dashed border-sapin bg-sapin p-4 text-papier">
-          <p className="text-sm text-papier/80">Avec Seconde Main</p>
-          <p className="mt-1 font-titre text-3xl font-semibold">{heures(tempsAvecNous)}</p>
-          <p className="mt-1 text-sm leading-snug text-papier/80">pour les mêmes annonces</p>
+        <div className="rounded-2xl bg-accent p-4 text-encre">
+          <p className="text-sm text-encre/70">Avec Seconde Main</p>
+          <p className="mt-1 font-titre text-3xl font-extrabold tracking-tight">{heures(tempsAvecNous)}</p>
+          <p className="mt-1 text-sm leading-snug text-encre/70">pour les mêmes annonces</p>
         </div>
       </div>
 
@@ -186,15 +186,15 @@ function Resultat({
         dépendent de tes objets.
       </p>
 
-      <button onClick={onRecommencer} className="mt-6 text-sm font-semibold text-sapin underline underline-offset-4">
+      <button onClick={onRecommencer} className="mt-6 text-sm font-semibold text-encre underline underline-offset-4">
         Modifier mes réponses
       </button>
 
-      <div className="fixed inset-x-0 bottom-0 border-t border-sapin/15 bg-papier/95 px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+      <div className="fixed inset-x-0 bottom-0 border-t border-encre/10 bg-white/95 px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
         <div className="mx-auto max-w-md md:max-w-xl">
           <Link
             href="/essai"
-            className="block w-full rounded-xl bg-brique py-4 text-center text-lg font-bold text-white shadow-[0_3px_0_#a8431f] active:translate-y-[2px] active:shadow-none"
+            className="block w-full rounded-xl bg-accent py-4 text-center text-lg font-bold text-encre shadow-[0_3px_0_#00855a] active:translate-y-[2px] active:shadow-none"
           >
             Essayer gratuitement sur un objet
           </Link>

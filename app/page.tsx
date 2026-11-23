@@ -18,9 +18,9 @@ const benefices = [
 export default function Accueil() {
   return (
     <main className="mx-auto max-w-md px-6 pb-36 pt-8 md:max-w-xl">
-      <p className="font-titre text-xl font-semibold text-sapin">Seconde Main</p>
+      <p className="font-titre text-xl font-extrabold tracking-tight text-encre">Seconde Main<span className="text-accent">.</span></p>
 
-      <h1 className="mt-10 font-titre text-[2.5rem] font-semibold leading-[1.1] text-sapin">
+      <h1 className="mt-10 font-titre text-[2.5rem] font-extrabold tracking-tight leading-[1.1] text-encre">
         Une photo.
         <br />
         Ton annonce prête pour tous les sites.
@@ -30,9 +30,9 @@ export default function Accueil() {
         Leboncoin et eBay.
       </p>
 
-      <div className="mt-10 -rotate-1 rounded-md border-2 border-dashed border-sapin bg-white/60 p-5">
-        <p className="text-sm font-bold uppercase tracking-wider text-brique">Le calcul qui fait mal</p>
-        <p className="mt-2 font-titre text-2xl font-semibold leading-snug text-sapin">
+      <div className="mt-10 rounded-2xl bg-doux p-5">
+        <p className="text-sm font-bold uppercase tracking-wider text-accent-fonce">Le calcul qui fait mal</p>
+        <p className="mt-2 font-titre text-2xl font-extrabold tracking-tight leading-snug text-encre">
           1 annonce ≈ 15 min.
           <br />× 3 sites = 45 min par objet.
         </p>
@@ -44,22 +44,22 @@ export default function Accueil() {
       <ol className="mt-12 space-y-7">
         {benefices.map((b, i) => (
           <li key={b.titre} className="flex gap-4">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sapin font-titre text-lg font-semibold text-papier">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent font-titre text-lg font-bold text-encre">
               {i + 1}
             </span>
             <div>
-              <h2 className="font-titre text-xl font-semibold text-sapin">{b.titre}</h2>
+              <h2 className="font-titre text-xl font-extrabold tracking-tight text-encre">{b.titre}</h2>
               <p className="mt-1 leading-relaxed">{b.texte}</p>
             </div>
           </li>
         ))}
       </ol>
 
-      <div className="fixed inset-x-0 bottom-0 border-t border-sapin/15 bg-papier/95 px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+      <div className="fixed inset-x-0 bottom-0 border-t border-encre/10 bg-white/95 px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
         <div className="mx-auto max-w-md md:max-w-xl">
           <Link
             href="/commencer"
-            className="block w-full rounded-xl bg-brique py-4 text-center text-lg font-bold text-white shadow-[0_3px_0_#a8431f] active:translate-y-[2px] active:shadow-none"
+            className="block w-full rounded-xl bg-accent py-4 text-center text-lg font-bold text-encre shadow-[0_3px_0_#00855a] active:translate-y-[2px] active:shadow-none"
           >
             Commencer, c&apos;est gratuit
           </Link>
