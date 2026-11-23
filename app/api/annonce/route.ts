@@ -7,7 +7,7 @@ const TYPES_AUTORISES = ["image/jpeg", "image/png", "image/webp"];
 const TAILLE_MAX_BASE64 = 3_000_000; // ~2,2 Mo d'image
 
 // Modèles gratuits essayés dans l'ordre (le premier disponible répond).
-const MODELES = [process.env.GEMINI_MODEL, "gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash"].filter(
+const MODELES = [process.env.GEMINI_MODEL, "gemini-flash-latest", "gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash"].filter(
   (m): m is string => Boolean(m),
 );
 
